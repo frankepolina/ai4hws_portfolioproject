@@ -1,7 +1,7 @@
 
 import geopandas as gpd
 
-from importfuncs import import_hyras
+from importfuncs import import_hyras, import_sm_dwd
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -40,10 +40,25 @@ tasmax = import_hyras(
     bboxCRS = study_area.crs
 )
 
+sm_dwd_90_100 = import_sm_dwd(
+    depth="90-100",
+    startyear=2014,
+    endyear=2019,
+    bbox=study_box,
+    bboxCRS=study_area.crs,   
+)
+
+sm_dwd_190_200 = import_sm_dwd(
+    depth="190-200",
+    startyear=2014,
+    endyear=2019,
+    bbox=study_box,
+    bboxCRS=study_area.crs,   
+)
 
 # sm_cop = import_copernicus()
 
-# sm_dwd = import_dwd()
+
 
 # _______________________________________________________________________________________________________________________
 # Preprocess (calculate features)
