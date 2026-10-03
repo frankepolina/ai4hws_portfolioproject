@@ -1,7 +1,7 @@
 
 import geopandas as gpd
 
-from importfuncs import import_hyras, import_sm_dwd
+from importfuncs import import_hyras, import_sm_dwd, import_sm_copernicus
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -16,6 +16,7 @@ end_year = 2019
 # Import data
 # _______________________________________________________________________________________________________________________
 
+'''
 pr = import_hyras(
     variable="pr",
     startyear=start_year,
@@ -26,37 +27,51 @@ pr = import_hyras(
 
 tas = import_hyras(    
     variable="tas",
-    startyear=2014,
-    endyear=2019,
+    startyear=start_year,
+    endyear=end_year,
     bbox=study_box,
     bboxCRS = study_area.crs
 )
 
 tasmax = import_hyras(
     variable="tasmax",
-    startyear=2014,
-    endyear=2019,
+    startyear=start_year,
+    endyear=end_year,
+    bbox=study_box,
+    bboxCRS = study_area.crs
+)
+
+tasmin = import_hyras(
+    variable="tasmin",
+    startyear=start_year,
+    endyear=end_year,
     bbox=study_box,
     bboxCRS = study_area.crs
 )
 
 sm_dwd_90_100 = import_sm_dwd(
     depth="90-100",
-    startyear=2014,
-    endyear=2019,
+    startyear=start_year,
+    endyear=end_year,
     bbox=study_box,
     bboxCRS=study_area.crs,   
 )
 
 sm_dwd_190_200 = import_sm_dwd(
     depth="190-200",
-    startyear=2014,
-    endyear=2019,
+    startyear=start_year,
+    endyear=end_year,
     bbox=study_box,
     bboxCRS=study_area.crs,   
 )
+'''
 
-# sm_cop = import_copernicus()
+sm_cop = import_sm_copernicus(
+    startyear=start_year,
+    endyear=end_year,
+    bbox=study_box,
+    bboxCRS=study_area.crs
+)
 
 
 
