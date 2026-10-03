@@ -1,7 +1,7 @@
 
 import geopandas as gpd
 
-from importfuncs import import_hyras, import_sm_dwd, import_sm_copernicus
+from importfuncs import import_hyras, import_sm_dwd
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -9,14 +9,12 @@ from importfuncs import import_hyras, import_sm_dwd, import_sm_copernicus
 study_area = gpd.read_file("./data/study_area.gpkg", layer="study_area")
 study_box = study_area.geometry.iloc[0].bounds
 
-start_year = 2014
-end_year = 2019
+start_year = 2001
+end_year = 2025
 
 # _______________________________________________________________________________________________________________________
 # Import data
 # _______________________________________________________________________________________________________________________
-
-'''
 pr = import_hyras(
     variable="pr",
     startyear=start_year,
@@ -49,6 +47,14 @@ tasmin = import_hyras(
     bboxCRS = study_area.crs
 )
 
+sm_dwd_0_10 = import_sm_dwd(
+    depth="0-10",
+    startyear=start_year,
+    endyear=end_year,
+    bbox=study_box,
+    bboxCRS=study_area.crs,   
+)
+
 sm_dwd_90_100 = import_sm_dwd(
     depth="90-100",
     startyear=start_year,
@@ -64,15 +70,6 @@ sm_dwd_190_200 = import_sm_dwd(
     bbox=study_box,
     bboxCRS=study_area.crs,   
 )
-'''
-
-sm_cop = import_sm_copernicus(
-    startyear=start_year,
-    endyear=end_year,
-    bbox=study_box,
-    bboxCRS=study_area.crs
-)
-
 
 
 # _______________________________________________________________________________________________________________________

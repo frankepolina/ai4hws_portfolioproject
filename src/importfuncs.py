@@ -1,10 +1,11 @@
 import tempfile
 import urllib.request
 from pathlib import Path
-
 import geopandas as gpd
 import xarray as xr
 from shapely.geometry import box
+import zipfile
+
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -12,13 +13,14 @@ from shapely.geometry import box
 
 HYRAS_VARIABLES = {"pr": {"directory": "precipitation", "filename": "pr_hyras_1_{year}_v6-1_de.nc"},
                    "tas": {"directory": "air_temperature_mean", "filename": "tas_hyras_1_{year}_v6-1_de.nc"},
-                   "tasmax": {"directory": "air_temperature_max", "filename": "tasmax_hyras_1_{year}_v6-1_de.nc"}
+                   "tasmax": {"directory": "air_temperature_max", "filename": "tasmax_hyras_1_{year}_v6-1_de.nc"},
+                   "tasmin": {"directory": "air_temperature_min", "filename": "tasmin_hyras_1_{year}_v6-1_de.nc"}
                    }
 HYRAS_CRS = "EPSG:3035"
 HYRAS_BASE_URL = "https://opendata.dwd.de/climate_environment/CDC/grids_germany/daily/hyras_de"
 
 
-DWD_SM_DEPTHS = ["90-100", "190-200"]
+DWD_SM_DEPTHS = ["0-10", "90-100", "190-200"]
 DWD_SM_CRS = "EPSG:31467"
 DWD_SM_BASE_URL = "https://opendata.dwd.de/climate_environment/CDC/grids_germany/daily/soil_moisture/composite"
 
@@ -109,6 +111,67 @@ def _load_sm_dwd_year(year,depth, bbox):
             return da 
 
 
+def _load_sm_copernicus(year, bbox, client):
+    """
+    Download, crop and load one year of Copernicus soil moisture data.
+    Inputs: year (int), bbox [tuple] in EPSG:4326 (xmin,ymin,xmax,ymax), client [cdsapi.Client]
+    Return: xarray.DataArray
+    Note: CSD request returns one zip file per year containing daily NetCDF files. 
+    """
+
+    xmin, ymin, xmax, ymax = bbox
+
+    request = {
+        "variable": [COP_SM_VARIABLE],
+        "type_of_sensor": [COP_SM_SENSOR],
+        "time_aggregation": [COP_SM_AGGREGATION],
+        "year": str(year),
+        "month": [f"{month:02d}" for month in range(1, 13)],
+        "day": [f"{day:02d}" for day in range(1, 32)],
+        "type_of_record": COP_SM_RECORD,
+        "version": COP_SM_VERSION,
+        "area": [ymax, xmin, ymin, xmax],  # North, West, South, East
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        print(f"Downloading Copernicus {COP_SM_VARIABLE} for {year}...")
+
+        result = client.retrieve(COP_SM_DATASET, request)
+
+        zip_path = Path(result.download(target=tmpdir / f"sm_copernicus_{year}.zip"))
+
+        # Extract the downloaded zip file
+        with zipfile.ZipFile(zip_path, "r") as z:
+            nc_files = sorted(name for name in z.namelist() if name.endswith(".nc"))
+
+            if not nc_files:
+                raise RuntimeError(f"No NetCDF files found in the zip for year {year}.")
+            
+            print(f"found {len(nc_files)} NetCDF files in the zip for year {year}.")
+        
+            z.extractall(path=tmpdir)
+
+        # load daily files seperately
+        daily_data = []
+        for i, nc_name in enumerate(nc_files, start=1):
+            nc_path = tmpdir / nc_name
+            with xr.open_dataset(nc_path, engine="netcdf4") as ds:
+                da = ds["sm"]
+                # crop to study area
+                da = da.sel(
+                    lat=slice(ymax, ymin), #lat is desc
+                    lon=slice(xmin, xmax) # lon is asc
+                )
+                # load
+                da = da.load()
+                daily_data.append(da)
+
+        # concat daily data along time axis
+        data = xr.concat(daily_data, dim="time")
+        data = data.sortby("time")
+
+        return data
 
 # _______________________________________________________________________________________________________________________
 # import functions
@@ -213,5 +276,3 @@ def import_sm_dwd(depth, startyear, endyear, bbox, bboxCRS="EPSG:3035", data_dir
     data.to_netcdf(output_file)
 
     return data
-
-
