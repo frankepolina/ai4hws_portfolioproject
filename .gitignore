@@ -21,6 +21,7 @@ uv.lock
 
 # data folder
 data/
+output/
 
 # Windows stuff
 Thumbs.db
