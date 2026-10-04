@@ -1,7 +1,10 @@
 
 import geopandas as gpd
+import xarray as xr
+from pathlib import Path
 
 from importfuncs import import_hyras, import_sm_dwd
+from preprocessfuncs import aggregate_by_region
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -12,9 +15,17 @@ study_box = study_area.geometry.iloc[0].bounds
 start_year = 2001
 end_year = 2025
 
+naturraum = gpd.read_file("../data/brandenburg_shape/naturraum_scholz_ohne_Berlin.gpkg", layer="naturraum_scholz_ohne_berlin")
+naturraum_3035 = naturraum.to_crs("EPSG:3035")
+
+pr_da = xr.open_dataset(Path("../data/imported")/"hyras_pr_v6-1_2001_2025.nc")["pr"]
+
+
 # _______________________________________________________________________________________________________________________
 # Import data
 # _______________________________________________________________________________________________________________________
+"""
+
 pr = import_hyras(
     variable="pr",
     startyear=start_year,
@@ -71,6 +82,7 @@ sm_dwd_190_200 = import_sm_dwd(
     bboxCRS=study_area.crs,   
 )
 
+"""
 
 # _______________________________________________________________________________________________________________________
 # Preprocess (calculate features)
