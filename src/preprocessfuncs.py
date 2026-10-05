@@ -1,5 +1,7 @@
 import geopandas as gpd
 import xarray as xr
+import numpy as np
+import pandas as pd
 from pathlib import Path
 
 
@@ -89,3 +91,138 @@ def aggregate_to_naturraeume(variable, startyear, endyear, data_array_path, cell
     da_agg.to_netcdf(out_file)
 
     return da_agg
+
+
+
+def aggregate_to_dekad(variable, aggregation, data_array_path, startyear, endyear, data_dir="./data/processed"):
+    """
+    Aggregate daily gridded data to calendar-based dekads, as defined by WMO standard.
+    Dekad 1: days 1-10, dekad 2: days 11-20, dekad 3: days 21-end of month.
+
+    Inputs:
+    - variable [str]: Name of variable in the NetCDF file.
+    - aggregation [str]: {"mean", "sum", "min", "max"} aggregation method.
+    - data_array_path: Path to input file
+    - startyear [int]: First year of input period, only used for naming convention.
+    - endyear [int]: Last year of input period, only used for naming convention.
+    - data_dir: Path to directory for aggregated output, default="./data/processed".
+
+    Returns:
+    - xarray.DataArray:dekadal aggregated data with dimensions (region_id, year, month, dekad)
+    """
+    data_dir = Path(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    out_file = (data_dir / f"{variable}_{aggregation}_dekadal_natraum_{startyear}_{endyear}.nc")
+
+    if out_file.exists():
+        print(f"Dataset already exists. Loading cached data: {out_file}")
+        return xr.open_dataarray(out_file)
+
+    # Load daily data
+    da = xr.open_dataarray(data_array_path)
+
+    # Create calendar dekad identifiers
+    dates = pd.DatetimeIndex(da.time.values)
+    
+    dekad_of_month = np.where(dates.day <= 10, 1,
+                          np.where(dates.day <= 20, 2, 3)
+                          )
+
+    # add year, month, dekad as coordinates
+    da = da.assign_coords(
+        year=("time", dates.year),
+        month=("time", dates.month),
+        dekad=("time", dekad_of_month),
+    )
+
+    # aggregate daily to dekadal
+    da_grouped = da.groupby(["year", "month", "dekad"])
+
+    if aggregation == "mean":
+        da_dekadal = da_grouped.mean(dim="time")
+    elif aggregation == "sum":
+        da_dekadal = da_grouped.sum(dim="time")
+    elif aggregation == "min":
+        da_dekadal = da_grouped.min(dim="time")
+    elif aggregation == "max":
+        da_dekadal = da_grouped.max(dim="time")
+    else:
+        raise ValueError(f"Invalid aggregation '{aggregation}'. Choose one of the following: mean, sum, min, max ")
+
+    # save
+    print(f"Saving dekadal {aggregation} {variable} data to: {out_file}")
+    da_dekadal.to_netcdf(out_file)
+
+    return da_dekadal
+
+
+
+def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_dir="./data/processed"):
+    """
+    Calculate calendar-dekad climatology from dekadally aggregated data.
+    For each Naturraum, month and dekad the mean and standard deviation across all years are calculated. 
+
+    Inputs:
+    - variable [str]: Name of variable in the NetCDF file.
+    - data_array_path: Path to dekadally aggregated NetCDF file.
+    - startyear [int]: First year of input period, only used for naming convention.
+    - endyear [int]: Last year of input period, only used for naming convention.
+    - data_dir: Path to directory for output, default="./data/processed".
+
+    Returns:
+    - xarray.Dataset containing:
+        - mean: climatological mean
+        - std: climatological standard deviation
+        Dimensions:
+        (region_id, month, dekad)
+
+    """
+
+    data_dir = Path(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    out_file = (data_dir / f"{variable}_dekad_climatology_natraum_{startyear}_{endyear}.nc")
+
+    if out_file.exists():
+        print(f"Dataset already exists. Loading cached climatology: {out_file}")
+        return xr.open_dataset(out_file)
+
+    da = xr.open_dataarray(data_array_path)
+
+    # check required dims
+    required_dims = {"year", "month", "dekad", "region_id"}
+    missing_dims = required_dims - set(da.dims)
+
+    if missing_dims:
+        raise ValueError(f"Input DataArray is missing required dimensions: {missing_dims}")
+    
+    # calculate mean and std
+    climatology_mean = da.mean(dim="year")
+    climatology_std = da.std(dim="year")
+    climatology_n = da.count(dim="year")
+
+    # save mean and std in same dataset
+    climatology = xr.Dataset({"mean": climatology_mean, "std": climatology_std, "n_years": climatology_n})
+
+    # check for std of zero
+    n_zero_std = int((climatology_std == 0).sum())
+    if n_zero_std > 0:
+        print(f"WARNING: {n_zero_std} (region, month, dekad) polygons have zero std for {variable}.")
+
+    # check for any missing years
+    min_n = int(climatology_n.min())
+    if min_n < endyear - startyear + 1:
+        print(f"Note: some (region, month, dekad) polygons have fewer than {endyear - startyear + 1} valid years (min = {min_n}).")
+
+    # add description for the forgetful brains... 
+    climatology.attrs["description"] = (f"Calendar-dekad climatology for {variable}, calculated over {startyear}-{endyear}.")
+
+    # save data set
+    print(f"Saving {variable} dekadal climatology to: {out_file}")
+    climatology.to_netcdf(out_file)
+
+    return climatology
+
+
+

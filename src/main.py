@@ -4,7 +4,7 @@ import xarray as xr
 from pathlib import Path
 
 from importfuncs import import_hyras, import_sm_dwd
-from preprocessfuncs import aggregate_to_naturraeume
+from preprocessfuncs import aggregate_to_naturraeume, aggregate_to_dekad, calc_dekad_climatology
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -88,6 +88,8 @@ sm_dwd_190_200 = import_sm_dwd(
 # Preprocess 
 # _______________________________________________________________________________________________________________________
 # Spatial Aggregation to Naturraum Polygons
+"""
+
 pr_natraum_daily = aggregate_to_naturraeume(variable="pr",
                                             startyear=start_year,
                                             endyear=end_year,
@@ -145,7 +147,93 @@ sm_low_natraum_daily = aggregate_to_naturraeume(variable="sm_dwd_190_200",
                                              gridCRS=dwdsmCRS,
                                              has_unique_reg_id=True)
 
+
 # Temporal Aggregation to Dekadal
+pr_sum = aggregate_to_dekad("pr",
+                            "sum",
+                            "./data/processed/pr_spatial_agg_natraum_2001_2025.nc",
+                            start_year,
+                            end_year)
+
+tas_mean = aggregate_to_dekad("tas",
+                              "mean",
+                              "./data/processed/tas_spatial_agg_natraum_2001_2025.nc",
+                              start_year,
+                              end_year)
+
+tasmin_min = aggregate_to_dekad("tasmin",
+                                "min",
+                                "./data/processed/tasmin_spatial_agg_natraum_2001_2025.nc",
+                                start_year,
+                                end_year)
+
+tasmax_max = aggregate_to_dekad("tasmax",
+                                "max",
+                                "./data/processed/tasmax_spatial_agg_natraum_2001_2025.nc",
+                                start_year,
+                                end_year)
+
+sm_top_mean = aggregate_to_dekad("sm_dwd_0_10",
+                                 "mean",
+                                 "./data/processed/sm_dwd_0_10_spatial_agg_natraum_2001_2025.nc",
+                                 start_year,
+                                 end_year)
+
+sm_mid_mean = aggregate_to_dekad("sm_dwd_90_100",
+                                 "mean",
+                                 "./data/processed/sm_dwd_90_100_spatial_agg_natraum_2001_2025.nc",
+                                 start_year,
+                                 end_year)
+
+sm_low_mean = aggregate_to_dekad("sm_dwd_190_200",
+                                 "mean",
+                                 "./data/processed/sm_dwd_190_200_spatial_agg_natraum_2001_2025.nc",
+                                 start_year,
+                                 end_year)
+
+"""
+
+# _______________________________________________________________________________________________________________________
+# Compute Climatology
+# _______________________________________________________________________________________________________________________
+pr_clima = calc_dekad_climatology("pr",
+                                  "./data/processed/pr_sum_dekadal_natraum_2001_2025.nc",
+                                  start_year,
+                                  end_year)
+
+tas_clima = calc_dekad_climatology("tas",
+                                   "./data/processed/tas_mean_dekadal_natraum_2001_2025.nc",
+                                   start_year,
+                                   end_year)
+
+tasmin_clima = calc_dekad_climatology("tasmin",
+                                      "./data/processed/tasmin_min_dekadal_natraum_2001_2025.nc",
+                                      start_year,
+                                      end_year)
+
+tasmax_clima = calc_dekad_climatology("tasmax",
+                                      "./data/processed/tasmax_max_dekadal_natraum_2001_2025.nc",
+                                      start_year,
+                                      end_year)
+
+sw_top_clima = calc_dekad_climatology("sw_dwd_0_10",
+                                      "./data/processed/sm_dwd_0_10_mean_dekadal_natraum_2001_2025.nc",
+                                      start_year,
+                                      end_year)
+
+sw_mid_clima = calc_dekad_climatology("sw_dwd_90_100",
+                                      "./data/processed/sm_dwd_90_100_mean_dekadal_natraum_2001_2025.nc",
+                                      start_year,
+                                      end_year)
+
+sw_low_clima = calc_dekad_climatology("sw_dwd_190_200",
+                                      "./data/processed/sm_dwd_190_200_mean_dekadal_natraum_2001_2025.nc",
+                                      start_year,
+                                      end_year)
+
+
+
+
 
 # _______________________________________________________________________________________________________________________
 # Build feature dataset
