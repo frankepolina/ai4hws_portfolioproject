@@ -4,7 +4,7 @@ import xarray as xr
 from pathlib import Path
 
 from importfuncs import import_hyras, import_sm_dwd
-from preprocessfuncs import aggregate_by_region
+from preprocessfuncs import aggregate_to_naturraeume
 
 # _______________________________________________________________________________________________________________________
 # Variable definition
@@ -15,11 +15,11 @@ study_box = study_area.geometry.iloc[0].bounds
 start_year = 2001
 end_year = 2025
 
-naturraum = gpd.read_file("../data/brandenburg_shape/naturraum_scholz_ohne_Berlin.gpkg", layer="naturraum_scholz_ohne_berlin")
-naturraum_3035 = naturraum.to_crs("EPSG:3035")
+lookup_hyras = "./data/processed/cell_centers_grid_naturraum_for_hyras.parquet"
+lookup_dwdsm = "./data/processed/cell_centers_grid_naturraum_for_sm.parquet"
 
-pr_da = xr.open_dataset(Path("../data/imported")/"hyras_pr_v6-1_2001_2025.nc")["pr"]
-
+hyrasCRS = "EPSG:3035"
+dwdsmCRS = "EPSG:31467"
 
 # _______________________________________________________________________________________________________________________
 # Import data
@@ -85,12 +85,67 @@ sm_dwd_190_200 = import_sm_dwd(
 """
 
 # _______________________________________________________________________________________________________________________
-# Preprocess (calculate features)
+# Preprocess 
 # _______________________________________________________________________________________________________________________
+# Spatial Aggregation to Naturraum Polygons
+pr_natraum_daily = aggregate_to_naturraeume(variable="pr",
+                                            startyear=start_year,
+                                            endyear=end_year,
+                                            data_array_path="./data/imported/hyras_pr_v6-1_2001_2025.nc",
+                                            cell_center_grid_naturraum=lookup_hyras,
+                                            gridCRS=hyrasCRS,
+                                            has_unique_reg_id=True)
 
-# pr = calculate_pr_anomalies(pr)
 
-# tas = ...
+tas_natraum_daily = aggregate_to_naturraeume(variable="tas",
+                                             startyear=start_year,
+                                             endyear=end_year,
+                                             data_array_path="./data/imported/hyras_tas_v6-1_2001_2025.nc",
+                                             cell_center_grid_naturraum=lookup_hyras,
+                                             gridCRS=hyrasCRS,
+                                             has_unique_reg_id=True)
+
+tasmin_natraum_daily = aggregate_to_naturraeume(variable="tasmin",
+                                             startyear=start_year,
+                                             endyear=end_year,
+                                             data_array_path="./data/imported/hyras_tasmin_v6-1_2001_2025.nc",
+                                             cell_center_grid_naturraum=lookup_hyras,
+                                             gridCRS=hyrasCRS,
+                                             has_unique_reg_id=True)
+
+tasmax_natraum_daily = aggregate_to_naturraeume(variable="tasmax",
+                                             startyear=start_year,
+                                             endyear=end_year,
+                                             data_array_path="./data/imported/hyras_tasmax_v6-1_2001_2025.nc",
+                                             cell_center_grid_naturraum=lookup_hyras,
+                                             gridCRS=hyrasCRS,
+                                             has_unique_reg_id=True)
+
+sm_top_natraum_daily = aggregate_to_naturraeume(variable="sm_dwd_0_10",
+                                             startyear=start_year,
+                                             endyear=end_year,
+                                             data_array_path="./data/imported/grids_germany_daily_soil_moisture_composite_0-10_v1.nc",
+                                             cell_center_grid_naturraum=lookup_dwdsm,
+                                             gridCRS=dwdsmCRS,
+                                             has_unique_reg_id=True)
+
+sm_mid_natraum_daily = aggregate_to_naturraeume(variable="sm_dwd_90_100",
+                                             startyear=start_year,
+                                             endyear=end_year,
+                                             data_array_path="./data/imported/grids_germany_daily_soil_moisture_composite_90-100_v1.nc",
+                                             cell_center_grid_naturraum=lookup_dwdsm,
+                                             gridCRS=dwdsmCRS,
+                                             has_unique_reg_id=True)
+
+sm_low_natraum_daily = aggregate_to_naturraeume(variable="sm_dwd_190_200",
+                                             startyear=start_year,
+                                             endyear=end_year,
+                                             data_array_path="./data/imported/grids_germany_daily_soil_moisture_composite_190-200_v1.nc",
+                                             cell_center_grid_naturraum=lookup_dwdsm,
+                                             gridCRS=dwdsmCRS,
+                                             has_unique_reg_id=True)
+
+# Temporal Aggregation to Dekadal
 
 # _______________________________________________________________________________________________________________________
 # Build feature dataset
