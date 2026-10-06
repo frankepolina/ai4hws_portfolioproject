@@ -88,7 +88,6 @@ sm_dwd_190_200 = import_sm_dwd(
 # Preprocess 
 # _______________________________________________________________________________________________________________________
 # Spatial Aggregation to Naturraum Polygons
-"""
 
 pr_natraum_daily = aggregate_to_naturraeume(variable="pr",
                                             startyear=start_year,
@@ -97,7 +96,6 @@ pr_natraum_daily = aggregate_to_naturraeume(variable="pr",
                                             cell_center_grid_naturraum=lookup_hyras,
                                             gridCRS=hyrasCRS,
                                             has_unique_reg_id=True)
-
 
 tas_natraum_daily = aggregate_to_naturraeume(variable="tas",
                                              startyear=start_year,
@@ -191,7 +189,7 @@ sm_low_mean = aggregate_to_dekad("sm_dwd_190_200",
                                  start_year,
                                  end_year)
 
-"""
+
 
 # _______________________________________________________________________________________________________________________
 # Compute Climatology
@@ -230,8 +228,6 @@ sw_low_clima = calc_dekad_climatology("sw_dwd_190_200",
                                       "./data/processed/sm_dwd_190_200_mean_dekadal_natraum_2001_2025.nc",
                                       start_year,
                                       end_year)
-
-
 
 
 
