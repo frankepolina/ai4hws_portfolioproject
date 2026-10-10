@@ -5,13 +5,6 @@ import pandas as pd
 from pathlib import Path
 
 
-# _______________________________________________________________________________________________________________________
-# Variable definition
-# _______________________________________________________________________________________________________________________
-
-
-# _______________________________________________________________________________________________________________________
-
 
 def aggregate_to_naturraeume(variable, startyear, endyear, data_array_path, cell_center_grid_naturraum, gridCRS, has_unique_reg_id=True, data_dir = "./data/processed") -> xr.DataArray:
     """
@@ -158,7 +151,8 @@ def aggregate_to_dekad(variable, aggregation, data_array_path, startyear, endyea
 
 
 
-def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_dir="./data/processed"):
+def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_dir="./data/processed",
+                           logtransform=False,overwrite=False):
     """
     Calculate calendar-dekad climatology from dekadally aggregated data.
     For each Naturraum, month and dekad the mean and standard deviation across all years are calculated. 
@@ -169,11 +163,15 @@ def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_d
     - startyear [int]: First year of input period, only used for naming convention.
     - endyear [int]: Last year of input period, only used for naming convention.
     - data_dir: Path to directory for output, default="./data/processed".
+    - logtransform [bool]: If True, np.log1p applied to the data BEFORE computing mean/std
+      (used for precipitation, as it is a heavily right-skewed variable). Its climatology is then in log1p-space.
+    - overwrite [bool]: If True, recompute even if a cached file exists.
 
     Returns:
     - xarray.Dataset containing:
         - mean: climatological mean
         - std: climatological standard deviation
+        - n_years: number of years
         Dimensions:
         (region_id, month, dekad)
 
@@ -182,11 +180,13 @@ def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_d
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    out_file = (data_dir / f"{variable}_dekad_climatology_natraum_{startyear}_{endyear}.nc")
+    suffix = "_log1p" if logtransform else ""
+    out_file = (data_dir / f"{variable}{suffix}_dekad_climatology_natraum_{startyear}_{endyear}.nc")
 
-    if out_file.exists():
+    if out_file.exists() and not overwrite==True:
         print(f"Dataset already exists. Loading cached climatology: {out_file}")
-        return xr.open_dataset(out_file)
+        with xr.open_dataset(out_file) as ds:
+            return ds.load() 
 
     da = xr.open_dataarray(data_array_path)
 
@@ -196,8 +196,16 @@ def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_d
 
     if missing_dims:
         raise ValueError(f"Input DataArray is missing required dimensions: {missing_dims}")
-    
-    # calculate mean and std
+
+
+    # log transform 
+    if logtransform==True:
+        if float(da.min()) < 0:
+            raise ValueError("Negative values found in {variable}, log1p is not defined for values < -1 !")
+        else:
+            da = np.log1p(da)
+
+    # calculate mean, std, number of years
     climatology_mean = da.mean(dim="year")
     climatology_std = da.std(dim="year")
     climatology_n = da.count(dim="year")
@@ -212,11 +220,12 @@ def calc_dekad_climatology(variable, data_array_path, startyear, endyear, data_d
 
     # check for any missing years
     min_n = int(climatology_n.min())
-    if min_n < endyear - startyear + 1:
+    if min_n < (endyear - startyear + 1):
         print(f"Note: some (region, month, dekad) polygons have fewer than {endyear - startyear + 1} valid years (min = {min_n}).")
 
-    # add description for the forgetful brains... 
+    # add metadata description for the forgetful brains... 
     climatology.attrs["description"] = (f"Calendar-dekad climatology for {variable}, calculated over {startyear}-{endyear}.")
+    climatology.attrs["logtransform"] = int(logtransform) # cause netcdf can not store bool
 
     # save data set
     print(f"Saving {variable} dekadal climatology to: {out_file}")
